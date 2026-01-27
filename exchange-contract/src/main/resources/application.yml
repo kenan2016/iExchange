@@ -1,0 +1,116 @@
+server:
+  port: 18084 # 服务端口
+
+spring:
+  application:
+    name: exchange-contract # 服务名
+  datasource:
+    url: jdbc:mysql://127.0.0.1:3306/iexchange?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai # 数据库地址
+    username: root # 数据库用户名
+    password: root # 数据库密码
+    driver-class-name: com.mysql.cj.jdbc.Driver # JDBC 驱动
+  cloud:
+    nacos:
+      discovery:
+        server-addr: 127.0.0.1:8848 # Nacos 注册中心地址
+    sentinel:
+      transport:
+        dashboard: 127.0.0.1:8858 # Sentinel 控制台地址 默认用户名/密码 sentinel/sentinel
+      eager: true # 启动即连接控制台
+
+contract:
+  margin:
+    min-leverage: 1 # 最小杠杆
+  fee:
+    rate: 0.0005 # 手续费费率（0.05%，）
+  funding:
+    default-rate: 0.0001 # 默认资金费率
+    max-rate: 0.003 # 费率上限
+    rate-coefficient: 0.01 # 费率系数
+    interval-seconds: 28800 # 结算间隔（秒，默认8小时）
+    auto-enabled: false # 是否开启定时计算
+    auto-settle: false # 是否自动结算
+    auto-interval-ms: 60000 # 定时任务执行间隔（毫秒）
+    settle-window-seconds: 5 # 结算时间窗口（秒）
+  market:
+    service-url: http://127.0.0.1:18085 # 行情服务地址
+  order:
+    pending-enabled: true # 是否允许限价单挂单
+    match-enabled: true # 是否开启挂单撮合任务
+    match-interval-ms: 3000 # 挂单撮合间隔（毫秒）
+  plan:
+    enabled: true # 是否开启计划委托触发任务
+    check-interval-ms: 5000 # 计划委托检查周期（毫秒）
+  liquidation:
+    enabled: true # 是否开启强平触发任务
+    check-interval-ms: 5000 # 强平检查周期（毫秒）
+
+dubbo:
+  application:
+    name: exchange-contract-dubbo # Dubbo 应用名（与 Spring 服务名区分）
+    metadata-type: remote # 元数据使用远程模式
+    qos-enable: true # 开启 QoS 管理端口
+    qos-port: 22224 # QoS 端口（避免冲突）
+  registry:
+    address: nacos://127.0.0.1:8848?group=DUBBO_GROUP&namespace=dubbo # Dubbo 使用 Nacos 作为注册中心
+  metadata-report:
+    address: nacos://127.0.0.1:8848?group=DUBBO_GROUP&namespace=dubbo # Dubbo 元数据上报到 Nacos
+  protocol:
+    name: dubbo # 使用 Dubbo 协议
+    port: -1 # 随机端口，避免端口冲突
+  consumer:
+    check: false # 启动时不强制检查提供者
+  scan:
+    base-packages: com.iexchange.contract # 扫描 Dubbo 服务
+
+es:
+  host: http://127.0.0.1:9200 # ES 地址
+
+canal:
+  enabled: true # 是否启用 Canal
+  host: 127.0.0.1 # Canal 地址
+  port: 11111 # Canal 端口
+  destination: example # Canal destination
+  username: "" # Canal 用户名
+  password: "" # Canal 密码
+  batch-size: 500 # 批次大小
+  filter: iexchange.contract_order # 过滤表
+
+seata:
+  enabled: true # 启用 Seata
+  data-source-proxy-mode: AT # 显式使用 AT 模式
+  application-id: exchange-contract # Seata 应用标识
+  tx-service-group: exchange_tx_group # 全局事务分组名
+  registry:
+    type: nacos # 使用 Nacos 注册中心
+    nacos:
+      server-addr: 127.0.0.1:8848 # Nacos 地址
+      group: SEATA_GROUP # Nacos 分组
+      namespace: seata # Nacos 命名空间（用于隔离）
+      application: seata-server # Seata Server 服务名
+      cluster: default # 集群名
+  config:
+    type: nacos # 使用 Nacos 配置中心
+    nacos:
+      server-addr: 127.0.0.1:8848 # Nacos 地址
+      group: SEATA_GROUP # 配置分组
+      namespace: seata # Nacos 命名空间（用于隔离）
+      data-id: seata-client.properties # 客户端配置 DataId
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true # 下划线转驼峰
+  global-config:
+    db-config:
+      id-type: auto # 主键自增
+
+springdoc:
+  api-docs:
+    enabled: true # 开启 OpenAPI 文档
+  swagger-ui:
+    enabled: true # Knife4j 依赖 swagger-config，需保持开启
+
+knife4j:
+  enable: true # 启用 Knife4j UI
+  setting:
+    language: zh_cn # 中文界面

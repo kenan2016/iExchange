@@ -1,0 +1,95 @@
+server:
+  port: 18085 # 服务端口
+
+spring:
+  application:
+    name: exchange-market # 服务名
+  data:
+    mongodb:
+      uri: mongodb://127.0.0.1:27017/iexchange # MongoDB 地址
+    redis:
+      host: 127.0.0.1 # Redis 地址
+      port: 6379 # Redis 端口
+      database: 0 # Redis 库编号
+      timeout: 2000ms # 连接超时
+  cloud:
+    nacos:
+      discovery:
+        server-addr: 127.0.0.1:8848 # Nacos 注册中心地址
+    sentinel:
+      transport:
+        dashboard: 127.0.0.1:8858 # Sentinel 控制台地址
+      eager: true # 启动即连接控制台
+  kafka:
+    bootstrap-servers: 127.0.0.1:9092 # Kafka 地址
+    consumer:
+      group-id: exchange-market # 消费组
+      auto-offset-reset: earliest # 从最早位置开始消费
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer # key 反序列化
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer # value 反序列化
+    listener:
+      missing-topics-fatal: false # 主题不存在时不阻断启动
+
+market:
+  trade:
+    topic: spot.trade # 现货成交主题
+    buffer-size: 1024 # Disruptor 环形队列大小
+  websocket:
+    port: 19090 # WebSocket 推送端口
+    depth-levels: 20 # WebSocket 推送深度档位
+    kline-interval: 1m # WebSocket 推送K线周期
+  kline:
+    cache-size: 500 # Redis 缓存最近 K 线数量
+    aggregate-mode: redis-first # 合成模式：mongo / redis-first
+  depth:
+    levels: 20 # 深度档位数量
+
+dubbo:
+  application:
+    name: exchange-market-dubbo # Dubbo 应用名（与 Spring 服务名区分）
+    metadata-type: remote # 元数据使用远程模式
+    qos-enable: true # 开启 QoS 管理端口
+    qos-port: 22225 # QoS 端口（避免冲突）
+  registry:
+    address: nacos://127.0.0.1:8848?group=DUBBO_GROUP&namespace=dubbo # Dubbo 使用 Nacos 作为注册中心
+  metadata-report:
+    address: nacos://127.0.0.1:8848?group=DUBBO_GROUP&namespace=dubbo # Dubbo 元数据上报到 Nacos
+  protocol:
+    name: dubbo # 使用 Dubbo 协议
+    port: -1 # 随机端口，避免端口冲突
+  consumer:
+    check: false # 启动时不强制检查提供者
+  scan:
+    base-packages: com.iexchange.market # 扫描 Dubbo 服务
+
+seata:
+  enabled: true # 启用 Seata
+  data-source-proxy-mode: AT # 显式使用 AT 模式
+  application-id: exchange-market # Seata 应用标识
+  tx-service-group: exchange_tx_group # 全局事务分组名
+  registry:
+    type: nacos # 使用 Nacos 注册中心
+    nacos:
+      server-addr: 127.0.0.1:8848 # Nacos 地址
+      group: SEATA_GROUP # Nacos 分组
+      namespace: seata # Nacos 命名空间（用于隔离）
+      application: seata-server # Seata Server 服务名
+      cluster: default # 集群名
+  config:
+    type: nacos # 使用 Nacos 配置中心
+    nacos:
+      server-addr: 127.0.0.1:8848 # Nacos 地址
+      group: SEATA_GROUP # 配置分组
+      namespace: seata # Nacos 命名空间（用于隔离）
+      data-id: seata-client.properties # 客户端配置 DataId
+
+springdoc:
+  api-docs:
+    enabled: true # 开启 OpenAPI 文档
+  swagger-ui:
+    enabled: true # Knife4j 依赖 swagger-config，需保持开启
+
+knife4j:
+  enable: true # 启用 Knife4j UI
+  setting:
+    language: zh_cn # 中文界面

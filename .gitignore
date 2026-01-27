@@ -1,0 +1,25 @@
+# IntelliJ IDEA
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+
+# Maven / Gradle
+target/
+**/target/
+**/out/
+
+# Logs & runtime files
+logs/
+*.log
+*.pid
+
+# OS
+.DS_Store
+
+# Local repos & caches
+.m2/
+
+# Docker data
+infra/data/

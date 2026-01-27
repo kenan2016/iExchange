@@ -1,0 +1,32 @@
+server:
+  port: 18080 # 网关端口
+
+spring:
+  application:
+    name: exchange-gateway # 网关服务名
+  cloud:
+    nacos:
+      discovery:
+        server-addr: 127.0.0.1:8848 # Nacos 注册中心地址
+    gateway:
+      discovery:
+        locator:
+          enabled: true # 通过服务发现自动创建路由
+          lower-case-service-id: true # 服务名转小写，便于访问
+    sentinel:
+      transport:
+        dashboard: 127.0.0.1:8858 # Sentinel 控制台地址
+      eager: true # 启动即连接控制台
+      scg:
+        enabled: true # 启用网关限流适配
+
+gateway:
+  auth:
+    enabled: true # 是否开启网关鉴权
+    ignore-paths: # 白名单路径
+      - /api/auth/login
+      - /api/market/**
+
+jwt:
+  secret: iexchange-demo-secret-please-change-32bytes # JWT 密钥
+  issuer: iexchange # JWT 发行者

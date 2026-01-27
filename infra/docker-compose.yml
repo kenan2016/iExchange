@@ -1,0 +1,94 @@
+version: "3.8"
+
+services:
+  mysql:
+    image: mysql:8.0.36
+    container_name: iexchange-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root # 账号密码
+      MYSQL_DATABASE: iexchange # 默认库
+    ports:
+      - "3306:3306" # MySQL 默认端口
+    volumes:
+      - ./data/mysql:/var/lib/mysql # 本地数据持久化
+      - ./mysql/init-seata.sql:/docker-entrypoint-initdb.d/init-seata.sql # Seata 初始化脚本
+      - ./mysql/init-user.sql:/docker-entrypoint-initdb.d/init-user.sql # 用户表初始化脚本
+      - ./mysql/init-wallet.sql:/docker-entrypoint-initdb.d/init-wallet.sql # 钱包表初始化脚本
+      - ./mysql/init-spot.sql:/docker-entrypoint-initdb.d/init-spot.sql # 现货撮合表初始化脚本
+      - ./mysql/init-contract.sql:/docker-entrypoint-initdb.d/init-contract.sql # 合约表初始化脚本
+
+  mongo:
+    image: mongo:7.0
+    container_name: iexchange-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017" # MongoDB 默认端口
+    volumes:
+      - ./data/mongo:/data/db # 本地数据持久化
+
+  redis:
+    image: redis:7.2
+    container_name: iexchange-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379" # Redis 默认端口
+    volumes:
+      - ./data/redis:/data # 本地数据持久化
+
+  zookeeper:
+    image: bitnami/zookeeper:3.9
+    container_name: iexchange-zookeeper
+    restart: unless-stopped
+    environment:
+      ALLOW_ANONYMOUS_LOGIN: "yes" # 匿名登录
+    ports:
+      - "2181:2181" # Zookeeper 默认端口
+
+  kafka:
+    image: bitnami/kafka:3.6.1
+    container_name: iexchange-kafka
+    restart: unless-stopped
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_CFG_ZOOKEEPER_CONNECT: zookeeper:2181 # 连接 Zookeeper
+      KAFKA_CFG_LISTENERS: PLAINTEXT://:9092 # 监听地址
+      KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092 # 广播地址
+      ALLOW_PLAINTEXT_LISTENER: "yes" # 明文传输
+    ports:
+      - "9092:9092" # Kafka 默认端口
+
+  nacos:
+    image: nacos/nacos-server:v2.2.3
+    container_name: iexchange-nacos
+    restart: unless-stopped
+    environment:
+      MODE: standalone # 单机模式
+    ports:
+      - "8848:8848" # Nacos 控制台/服务注册端口
+      - "9848:9848" # Nacos gRPC 端口
+    volumes:
+      - ./data/nacos:/home/nacos/data # 本地数据持久化
+
+  sentinel:
+    image: bladex/sentinel-dashboard:1.8.6
+    container_name: iexchange-sentinel
+    restart: unless-stopped
+    ports:
+      - "8858:8858" # Sentinel 控制台端口
+
+  seata:
+    image: seataio/seata-server:1.7.1
+    container_name: iexchange-seata
+    restart: unless-stopped
+    environment:
+      SEATA_IP: 127.0.0.1 # 本机地址
+      SEATA_PORT: 8091 # Seata 服务端口
+      SEATA_CONFIG_NAME: file:/seata-server/resources/application.yml # 使用自定义配置
+    ports:
+      - "8091:8091" # Seata Server 端口
+      - "7091:7091" # Seata 控制台端口
+    volumes:
+      - ./data/seata:/seata-server/data # 本地数据持久化
+      - ./seata/application.yml:/seata-server/resources/application.yml # 挂载自定义配置

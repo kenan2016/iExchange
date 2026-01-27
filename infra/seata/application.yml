@@ -1,0 +1,57 @@
+server:
+  port: 7091 # Seata 控制台端口
+
+spring:
+  application:
+    name: seata-server
+
+logging:
+  config: classpath:logback-spring.xml
+  file:
+    path: /seata-server/logs # 日志文件路径
+  level:
+    io.seata: info
+
+console:
+  user:
+    username: seata
+    password: seata
+
+seata:
+  registry:
+    type: nacos # 使用 Nacos 注册中心
+    nacos:
+      application: seata-server # Seata Server 服务名
+      server-addr: 192.168.31.50:8848 # Nacos 地址
+      group: SEATA_GROUP # Nacos 分组
+      namespace: seata # 命名空间（用于隔离）
+      cluster: default # 集群名
+  config:
+    type: nacos # 使用 Nacos 配置中心
+    nacos:
+      server-addr: 192.168.31.50:8848 # Nacos 地址
+      group: SEATA_GROUP # 配置分组
+      namespace: seata # 命名空间（用于隔离）
+      data-id: seata-server.properties # 服务端配置 DataId
+  store:
+    mode: db # 存储模式：db（数据库）
+    db:
+      datasource: druid
+      dbType: mysql
+      driverClassName: com.mysql.cj.jdbc.Driver
+      url: jdbc:mysql://192.168.31.50:3306/seata?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
+      user: root
+      password: root
+      minConn: 5
+      maxConn: 100
+      globalTable: global_table
+      branchTable: branch_table
+      lockTable: lock_table
+      distributedLockTable: distributed_lock
+      queryLimit: 100
+      maxWait: 5000
+  security:
+    secretKey: SeataSecretKey0c382ef121d778043159209298fd40bf3850a017
+    tokenValidityInMilliseconds: 1800000
+    ignore:
+      urls: /,/**/*.css,/**/*.js,/**/*.html,/**/*.map,/**/*.svg,/**/*.png,/**/*.ico,/console-fe/public/**,/api/v1/auth/login
