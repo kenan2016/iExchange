@@ -99,7 +99,6 @@ chmod +x scripts/env-down.sh
 ```
 
 ## License
-当前仓库未包含 LICENSE 文件。开源前请补充许可证（例如 MIT/Apache-2.0），并在 README 中同步说明。
 
 ## 免责声明
 本项目为学习与演示用途，不建议直接用于生产环境。

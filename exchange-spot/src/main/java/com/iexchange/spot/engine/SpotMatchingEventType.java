@@ -3,7 +3,7 @@ package com.iexchange.spot.engine;
 import lombok.Getter;
 
 /**
- * 撮合事件类型。
+ * 撮合事件类型（Disruptor 事件分发使用）。
  */
 @Getter
 public enum SpotMatchingEventType {

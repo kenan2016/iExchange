@@ -10,6 +10,11 @@ import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * 简化订单簿。
+ *
+ * 说明：
+ * - 通过两个优先队列维护买盘/卖盘
+ * - 队列排序规则：价格优先，时间优先
+ * - 使用索引表加速撤单
  */
 public class OrderBook {
 
@@ -34,6 +39,7 @@ public class OrderBook {
     private final AtomicLong sequence;
 
     public OrderBook() {
+        // 买盘：价格高优先，价格相同时按入队序列先后
         this.buyQueue = new PriorityQueue<>((left, right) -> {
             int priceCompare = safePrice(right.getOrder()).compareTo(safePrice(left.getOrder()));
             if (priceCompare != 0) {
@@ -41,6 +47,7 @@ public class OrderBook {
             }
             return Long.compare(left.getSequence(), right.getSequence());
         });
+        // 卖盘：价格低优先，价格相同时按入队序列先后
         this.sellQueue = new PriorityQueue<>((left, right) -> {
             int priceCompare = safePrice(left.getOrder()).compareTo(safePrice(right.getOrder()));
             if (priceCompare != 0) {
@@ -73,6 +80,8 @@ public class OrderBook {
 
     /**
      * 获取当前买盘最优价订单（会清理已失效条目）。
+     *
+     * 通过 lazy-clean 的方式清理失效条目，避免每次撮合都全量遍历。
      */
     public OrderBookEntry peekBestBuy() {
         cleanQueue(buyQueue);
@@ -81,6 +90,8 @@ public class OrderBook {
 
     /**
      * 获取当前卖盘最优价订单（会清理已失效条目）。
+     *
+     * 通过 lazy-clean 的方式清理失效条目，避免每次撮合都全量遍历。
      */
     public OrderBookEntry peekBestSell() {
         cleanQueue(sellQueue);
@@ -126,6 +137,8 @@ public class OrderBook {
 
     /**
      * 清理队列顶部的失效条目，保证 peek 得到的是可成交的订单。
+     *
+     * 注意：这里只清理队头失效数据，保持 O(logN) 的处理成本。
      */
     private void cleanQueue(PriorityQueue<OrderBookEntry> queue) {
         while (!queue.isEmpty()) {

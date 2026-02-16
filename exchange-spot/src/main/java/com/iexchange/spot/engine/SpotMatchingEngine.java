@@ -34,11 +34,20 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * 现货撮合引擎（简化版）。
+ *
+ * 核心职责：
+ * - 接收下单/撤单事件
+ * - 维护每个交易对的订单簿
+ * - 按价格优先、时间优先完成撮合
+ * - 生成成交、更新订单状态、结算资金
  */
 @Slf4j
 @Service
 public class SpotMatchingEngine {
     private static final int FEE_SCALE = 8;
+    /**
+     * 交易对 -> 订单簿（每个交易对独立撮合，不互相干扰）。
+     */
     private final Map<String, OrderBook> orderBooks = new ConcurrentHashMap<>();
     private final SpotOrderMapper orderMapper;
     private final SpotTradeMapper tradeMapper;
@@ -46,8 +55,17 @@ public class SpotMatchingEngine {
     private final SpotFeeService feeService;
     private final WalletAccountClient walletClient;
     private final Disruptor<SpotMatchingEvent> disruptor;
+    /**
+     * 撮合与落库使用事务模板，保证订单/成交一致性（简化示意）。
+     */
     private final TransactionTemplate transactionTemplate;
+    /**
+     * 等待撮合结果的超时时间，避免接口阻塞过久。
+     */
     private final long awaitTimeoutMs;
+    /**
+     * 手续费费率（成交额 * 费率），示例用途。
+     */
     private final BigDecimal feeRate;
     private RingBuffer<SpotMatchingEvent> ringBuffer;
 
@@ -75,6 +93,7 @@ public class SpotMatchingEngine {
             thread.setDaemon(true);
             return thread;
         };
+        // Disruptor 解耦业务线程与撮合线程，提升吞吐并降低锁竞争
         this.disruptor = new Disruptor<>(
             new SpotMatchingEventFactory(),
             normalizedSize,
@@ -102,7 +121,7 @@ public class SpotMatchingEngine {
     }
 
     /**
-     * 撮合订单（，价格优先 + 时间优先）。
+     * 撮合订单（价格优先 + 时间优先）。
      */
     public SpotOrderEntity match(SpotOrderEntity takerOrder) {
         SpotMatchingResult result = publishAndAwait(SpotMatchingEventType.MATCH, takerOrder);
@@ -158,6 +177,10 @@ public class SpotMatchingEngine {
 
     /**
      * 撮合入口，根据买卖方向选择不同的撮合路径。
+     *
+     * 说明：
+     * - 买单从卖盘最优价开始吃单
+     * - 卖单从买盘最优价开始吃单
      */
     private SpotOrderEntity processMatch(SpotOrderEntity takerOrder) {
         // 每个交易对维护独立订单簿
@@ -195,6 +218,10 @@ public class SpotMatchingEngine {
 
     /**
      * 买单撮合：从卖盘最优价开始吃单，价格优先、时间优先。
+     *
+     * 关键点：
+     * - 只要剩余数量大于 0，就持续吃单
+     * - 市价单通过“保护价”限制吃单深度
      */
     private void matchBuy(SpotOrderEntity takerOrder, OrderBook orderBook) {
         BigDecimal remaining = remaining(takerOrder);
@@ -219,6 +246,10 @@ public class SpotMatchingEngine {
 
     /**
      * 卖单撮合：从买盘最优价开始吃单，价格优先、时间优先。
+     *
+     * 关键点：
+     * - 只要剩余数量大于 0，就持续吃单
+     * - 市价单通过“保护价”限制吃单深度
      */
     private void matchSell(SpotOrderEntity takerOrder, OrderBook orderBook) {
         BigDecimal remaining = remaining(takerOrder);
@@ -243,6 +274,12 @@ public class SpotMatchingEngine {
 
     /**
      * 处理撮合成交。
+     *
+     * 主要步骤：
+     * 1) 更新 maker 订单剩余与状态
+     * 2) 生成成交记录并落库
+     * 3) 计算费用/结算资金
+     * 4) 推送成交事件给行情服务
      */
     private void handleTrade(SpotOrderEntity takerOrder, OrderBookEntry makerEntry,
                              BigDecimal tradeQuantity, BigDecimal tradePrice, OrderBook orderBook) {
@@ -273,6 +310,10 @@ public class SpotMatchingEngine {
 
     /**
      * 处理吃单结果：更新订单状态，并将剩余挂单或解冻。
+     *
+     * 规则：
+     * - 限价单：剩余数量进入订单簿
+     * - 市价单：剩余数量直接解冻
      */
     private void finalizeTaker(SpotOrderEntity takerOrder, BigDecimal remaining, OrderBook orderBook) {
         BigDecimal filled = takerOrder.getQuantity().subtract(remaining);
@@ -467,6 +508,10 @@ public class SpotMatchingEngine {
 
     /**
      * 撮合事件处理器。
+     *
+     * 说明：
+     * - Disruptor 线程中执行撮合，避免阻塞业务线程
+     * - 匹配逻辑可被事务包裹，确保订单/成交原子性（示意）
      */
     private class SpotMatchingEventHandler implements EventHandler<SpotMatchingEvent> {
 

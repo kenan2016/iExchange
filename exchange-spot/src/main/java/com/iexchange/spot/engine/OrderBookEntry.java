@@ -7,6 +7,11 @@ import lombok.Data;
 
 /**
  * 订单簿条目。
+ *
+ * 一个条目代表订单簿中的“挂单快照”，包含：
+ * - 订单主体
+ * - 剩余数量（随着成交递减）
+ * - 入队序列（用于时间优先）
  */
 @Data
 @AllArgsConstructor
@@ -18,17 +23,17 @@ public class OrderBookEntry {
     private final SpotOrderEntity order;
 
     /**
-     * 剩余待成交数量。
+     * 剩余待成交数量（不等同于订单总量）。
      */
     private BigDecimal remainingQuantity;
 
     /**
-     * 入队序列号（保证时间优先）。
+     * 入队序列号（保证时间优先，越小越早）。
      */
     private final long sequence;
 
     /**
-     * 是否被撤销。
+     * 是否被撤销/移除。
      */
     private boolean canceled;
 

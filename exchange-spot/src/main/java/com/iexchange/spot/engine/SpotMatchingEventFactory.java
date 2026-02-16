@@ -4,6 +4,8 @@ import com.lmax.disruptor.EventFactory;
 
 /**
  * 撮合事件工厂。
+ *
+ * Disruptor 预先创建事件对象，避免频繁 GC。
  */
 public class SpotMatchingEventFactory implements EventFactory<SpotMatchingEvent> {
 
